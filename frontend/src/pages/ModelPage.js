@@ -1,93 +1,84 @@
-// 14. src/pages/ModelPage.jsx
-import React, { useEffect, useState } from "react";
-import axios from "axios";
-import { useAuth } from "../context/AuthContext";
+import React, { useEffect, useState } from 'react';
 import {
-  TextField,
   Button,
+  TextField,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Table,
   TableHead,
   TableRow,
   TableCell,
-  TableBody,
-  Container,
-  Typography,
-} from "@mui/material";
+  TableBody
+} from '@mui/material';
+import axios from 'axios';
+import { useAuth } from '../context/AuthContext';
 
 const ModelPage = () => {
   const { token } = useAuth();
   const [models, setModels] = useState([]);
-  const [newModel, setNewModel] = useState({ name: "", manufacturer: "" });
-  const [editingId, setEditingId] = useState(null);
-
-  useEffect(() => {
-    fetchModels();
-  }, [token]);
+  const [open, setOpen] = useState(false);
+  const [modelData, setModelData] = useState({ name: '' });
+  const [editId, setEditId] = useState(null);
 
   const fetchModels = async () => {
-    const res = await axios.get("http://localhost:4000/api/models", {
-      headers: { Authorization: `Bearer ${token}` },
+    const res = await axios.get('http://localhost:4000/api/models', {
+      headers: { Authorization: `Bearer ${token}` }
     });
     setModels(res.data);
   };
 
-  const handleAddOrUpdateModel = async () => {
-    if (editingId) {
-      await axios.put(
-        `http://localhost:4000/api/models/${editingId}`,
-        newModel,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-    } else {
-      await axios.post("http://localhost:4000/api/models", newModel, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-    }
-    setNewModel({ name: "", manufacturer: "" });
-    setEditingId(null);
+  useEffect(() => {
     fetchModels();
+  }, []);
+
+  const handleOpen = (model = null) => {
+    if (model) {
+      setModelData({ name: model.name });
+      setEditId(model.id);
+    } else {
+      setModelData({ name: '' });
+      setEditId(null);
+    }
+    setOpen(true);
   };
 
-  const handleEditModel = (model) => {
-    setNewModel({ name: model.name, manufacturer: model.manufacturer });
-    setEditingId(model.id);
+  const handleClose = () => {
+    setOpen(false);
+    setModelData({ name: '' });
+    setEditId(null);
   };
 
-  const handleDeleteModel = async (id) => {
+  const handleSubmit = async () => {
+    if (!modelData.name) return alert('Name is required.');
+    const url = editId
+      ? `http://localhost:4000/api/models/${editId}`
+      : 'http://localhost:4000/api/models';
+    const method = editId ? 'put' : 'post';
+    await axios[method](url, modelData, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    fetchModels();
+    handleClose();
+  };
+
+  const handleDelete = async (id) => {
     await axios.delete(`http://localhost:4000/api/models/${id}`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { Authorization: `Bearer ${token}` }
     });
     fetchModels();
   };
 
   return (
-    <Container>
-      <Typography variant="h4" gutterBottom>
-        Model Management
-      </Typography>
-      <TextField
-        label="Name"
-        value={newModel.name}
-        onChange={(e) => setNewModel({ ...newModel, name: e.target.value })}
-      />
-      <TextField
-        label="Manufacturer"
-        value={newModel.manufacturer}
-        onChange={(e) =>
-          setNewModel({ ...newModel, manufacturer: e.target.value })
-        }
-      />
-      <Button onClick={handleAddOrUpdateModel} variant="contained">
-        {editingId ? "Update Model" : "Add Model"}
-      </Button>
+    <div>
+      <h2>Models</h2>
+      <Button variant="contained" onClick={() => handleOpen()}>Add Model</Button>
 
       <Table>
         <TableHead>
           <TableRow>
             <TableCell>Name</TableCell>
-            <TableCell>Manufacturer</TableCell>
             <TableCell>Actions</TableCell>
           </TableRow>
         </TableHead>
@@ -95,21 +86,32 @@ const ModelPage = () => {
           {models.map((model) => (
             <TableRow key={model.id}>
               <TableCell>{model.name}</TableCell>
-              <TableCell>{model.manufacturer}</TableCell>
               <TableCell>
-                <Button onClick={() => handleEditModel(model)}>Edit</Button>
-                <Button
-                  color="error"
-                  onClick={() => handleDeleteModel(model.id)}
-                >
-                  Delete
-                </Button>
+                <Button onClick={() => handleOpen(model)}>Edit</Button>
+                <Button color="error" onClick={() => handleDelete(model.id)}>Delete</Button>
               </TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
-    </Container>
+
+      <Dialog open={open} onClose={handleClose}>
+        <DialogTitle>{editId ? 'Edit Model' : 'Add Model'}</DialogTitle>
+        <DialogContent>
+          <TextField
+            label="Name"
+            fullWidth
+            value={modelData.name}
+            onChange={(e) => setModelData({ ...modelData, name: e.target.value })}
+            margin="normal"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleClose}>Cancel</Button>
+          <Button onClick={handleSubmit}>{editId ? 'Update' : 'Create'}</Button>
+        </DialogActions>
+      </Dialog>
+    </div>
   );
 };
 

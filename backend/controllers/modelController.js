@@ -23,3 +23,4 @@ exports.deleteModel = async (req, res) => {
   await model.destroy();
   res.json({ message: 'Model deleted successfully' });
 };
+    
